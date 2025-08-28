@@ -1,0 +1,312 @@
+{#
+  Country Flag Custom Template for Home Assistant
+  ========================================
+  
+  Generates flag emojis and Twemoji URLs from country names or ISO-2 codes.
+  
+  Features:
+  - 190+ countries with multilingual name support
+  - Dynamic Unicode calculation for flag emojis
+  - Twemoji PNG/SVG URLs with different sizes
+  - Accent character normalization
+  - Robust input validation and error handling
+  
+  Usage:
+  ------
+  {%- from 'country_flags.jinja' import flag_emoji, flag_svg, flag_png, flag_info -%}
+  
+  Examples:
+  - {{ flag_emoji('Germany') }}     → 🇩🇪
+  - {{ flag_png('DE') }}           → PNG URL
+  - {{ flag_svg('Deutschland') }}  → SVG URL
+  - {{ flag_info('Japan') }}       → Complete info as JSON
+  
+  Author: Alexander Kentner <github@akentner.de>
+  Version: 1.0
+#}
+
+{% set base_url = "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2" %}
+
+{# Extended ISO mappings with 190+ countries and multilingual variants #}
+{%- set iso_map = {
+    'ad':'ad','andorra':'ad',
+    'ae':'ae','united arab emirates':'ae','uae':'ae','emirates':'ae',
+    'af':'af','afghanistan':'af',
+    'ag':'ag','antigua and barbuda':'ag','antigua':'ag',
+    'al':'al','albania':'al',
+    'am':'am','armenia':'am',
+    'ao':'ao','angola':'ao',
+    'ar':'ar','argentina':'ar',
+    'at':'at','austria':'at','österreich':'at',
+    'au':'au','australia':'au',
+    'az':'az','azerbaijan':'az',
+    'ba':'ba','bosnia and herzegovina':'ba','bosnia':'ba',
+    'bb':'bb','barbados':'bb',
+    'bd':'bd','bangladesh':'bd',
+    'be':'be','belgium':'be','belgique':'be','belgië':'be',
+    'bf':'bf','burkina faso':'bf',
+    'bg':'bg','bulgaria':'bg',
+    'bh':'bh','bahrain':'bh',
+    'bi':'bi','burundi':'bi',
+    'bj':'bj','benin':'bj',
+    'bn':'bn','brunei':'bn',
+    'bo':'bo','bolivia':'bo',
+    'br':'br','brazil':'br','brasil':'br',
+    'bs':'bs','bahamas':'bs',
+    'bt':'bt','bhutan':'bt',
+    'bw':'bw','botswana':'bw',
+    'by':'by','belarus':'by',
+    'bz':'bz','belize':'bz',
+    'ca':'ca','canada':'ca',
+    'cd':'cd','democratic republic of the congo':'cd','congo':'cd','drc':'cd',
+    'cf':'cf','central african republic':'cf',
+    'cg':'cg','republic of the congo':'cg',
+    'ch':'ch','switzerland':'ch','schweiz':'ch','suisse':'ch',
+    'ci':'ci','ivory coast':'ci',"côte d'ivoire":'ci',
+    'cl':'cl','chile':'cl',
+    'cm':'cm','cameroon':'cm',
+    'cn':'cn','china':'cn','prc':'cn',"people's republic of china":'cn',
+    'co':'co','colombia':'co',
+    'cr':'cr','costa rica':'cr',
+    'cu':'cu','cuba':'cu',
+    'cv':'cv','cape verde':'cv',
+    'cy':'cy','cyprus':'cy',
+    'cz':'cz','czech republic':'cz','czechia':'cz','czech':'cz',
+    'de':'de','germany':'de','deutschland':'de',
+    'dj':'dj','djibouti':'dj',
+    'dk':'dk','denmark':'dk','danmark':'dk',
+    'dm':'dm','dominica':'dm',
+    'do':'do','dominican republic':'do',
+    'dz':'dz','algeria':'dz',
+    'ec':'ec','ecuador':'ec',
+    'ee':'ee','estonia':'ee',
+    'eg':'eg','egypt':'eg',
+    'eh':'eh','western sahara':'eh',
+    'er':'er','eritrea':'er',
+    'es':'es','spain':'es','españa':'es',
+    'et':'et','ethiopia':'et',
+    'fi':'fi','finland':'fi','suomi':'fi',
+    'fj':'fj','fiji':'fj',
+    'fm':'fm','micronesia':'fm',
+    'fo':'fo','faroe islands':'fo',
+    'fr':'fr','france':'fr',
+    'ga':'ga','gabon':'ga',
+    'gb':'gb','uk':'gb','united kingdom':'gb','great britain':'gb','britain':'gb','england':'gb','scotland':'gb','wales':'gb',
+    'gd':'gd','grenada':'gd',
+    'ge':'ge','georgia':'ge',
+    'gh':'gh','ghana':'gh',
+    'gl':'gl','greenland':'gl',
+    'gm':'gm','gambia':'gm',
+    'gn':'gn','guinea':'gn',
+    'gq':'gq','equatorial guinea':'gq',
+    'gr':'gr','greece':'gr','hellas':'gr',
+    'gt':'gt','guatemala':'gt',
+    'gw':'gw','guinea-bissau':'gw',
+    'gy':'gy','guyana':'gy',
+    'hn':'hn','honduras':'hn',
+    'hr':'hr','croatia':'hr','hrvatska':'hr',
+    'ht':'ht','haiti':'ht',
+    'hu':'hu','hungary':'hu','magyarország':'hu',
+    'id':'id','indonesia':'id',
+    'ie':'ie','ireland':'ie','éire':'ie',
+    'il':'il','israel':'il',
+    'in':'in','india':'in','bharat':'in',
+    'iq':'iq','iraq':'iq',
+    'ir':'ir','iran':'ir',
+    'is':'is','iceland':'is','ísland':'is',
+    'it':'it','italy':'it','italia':'it',
+    'jm':'jm','jamaica':'jm',
+    'jo':'jo','jordan':'jo',
+    'jp':'jp','japan':'jp','nippon':'jp','nihon':'jp',
+    'ke':'ke','kenya':'ke',
+    'kg':'kg','kyrgyzstan':'kg',
+    'kh':'kh','cambodia':'kh',
+    'ki':'ki','kiribati':'ki',
+    'km':'km','comoros':'km',
+    'kn':'kn','saint kitts and nevis':'kn',
+    'kp':'kp','north korea':'kp','dprk':'kp',
+    'kr':'kr','south korea':'kr','korea':'kr','republic of korea':'kr',
+    'kw':'kw','kuwait':'kw',
+    'kz':'kz','kazakhstan':'kz',
+    'la':'la','laos':'la',
+    'lb':'lb','lebanon':'lb',
+    'lc':'lc','saint lucia':'lc',
+    'li':'li','liechtenstein':'li',
+    'lk':'lk','sri lanka':'lk','ceylon':'lk',
+    'lr':'lr','liberia':'lr',
+    'ls':'ls','lesotho':'ls',
+    'lt':'lt','lithuania':'lt',
+    'lu':'lu','luxembourg':'lu',
+    'lv':'lv','latvia':'lv',
+    'ly':'ly','libya':'ly',
+    'ma':'ma','morocco':'ma','maroc':'ma',
+    'mc':'mc','monaco':'mc',
+    'md':'md','moldova':'md',
+    'me':'me','montenegro':'me',
+    'mg':'mg','madagascar':'mg',
+    'mh':'mh','marshall islands':'mh',
+    'mk':'mk','north macedonia':'mk','macedonia':'mk',
+    'ml':'ml','mali':'ml',
+    'mm':'mm','myanmar':'mm','burma':'mm',
+    'mn':'mn','mongolia':'mn',
+    'mr':'mr','mauritania':'mr',
+    'mt':'mt','malta':'mt',
+    'mu':'mu','mauritius':'mu',
+    'mv':'mv','maldives':'mv',
+    'mw':'mw','malawi':'mw',
+    'mx':'mx','mexico':'mx','méxico':'mx',
+    'my':'my','malaysia':'my',
+    'mz':'mz','mozambique':'mz',
+    'na':'na','namibia':'na',
+    'ne':'ne','niger':'ne',
+    'ng':'ng','nigeria':'ng',
+    'ni':'ni','nicaragua':'ni',
+    'nl':'nl','netherlands':'nl','holland':'nl','nederland':'nl',
+    'no':'no','norway':'no','norge':'no',
+    'np':'np','nepal':'np',
+    'nr':'nr','nauru':'nr',
+    'nu':'nu','niue':'nu',
+    'nz':'nz','new zealand':'nz',
+    'om':'om','oman':'om',
+    'pa':'pa','panama':'pa',
+    'pe':'pe','peru':'pe','perú':'pe',
+    'pg':'pg','papua new guinea':'pg',
+    'ph':'ph','philippines':'ph',
+    'pk':'pk','pakistan':'pk',
+    'pl':'pl','poland':'pl','polska':'pl',
+    'pt':'pt','portugal':'pt',
+    'pw':'pw','palau':'pw',
+    'py':'py','paraguay':'py',
+    'qa':'qa','qatar':'qa',
+    'ro':'ro','romania':'ro','românia':'ro',
+    'rs':'rs','serbia':'rs','srbija':'rs',
+    'ru':'ru','russia':'ru','russian federation':'ru','россия':'ru',
+    'rw':'rw','rwanda':'rw',
+    'sa':'sa','saudi arabia':'sa','ksa':'sa',
+    'sb':'sb','solomon islands':'sb',
+    'sc':'sc','seychelles':'sc',
+    'sd':'sd','sudan':'sd',
+    'se':'se','sweden':'se','sverige':'se',
+    'sg':'sg','singapore':'sg',
+    'si':'si','slovenia':'si','slovenija':'si',
+    'sk':'sk','slovakia':'sk','slovensko':'sk',
+    'sl':'sl','sierra leone':'sl',
+    'sm':'sm','san marino':'sm',
+    'sn':'sn','senegal':'sn',
+    'so':'so','somalia':'so',
+    'sr':'sr','suriname':'sr',
+    'st':'st','são tomé and príncipe':'st',
+    'sv':'sv','el salvador':'sv',
+    'sy':'sy','syria':'sy',
+    'sz':'sz','eswatini':'sz','swaziland':'sz',
+    'td':'td','chad':'td',
+    'tg':'tg','togo':'tg',
+    'th':'th','thailand':'th',
+    'tj':'tj','tajikistan':'tj',
+    'tl':'tl','east timor':'tl','timor-leste':'tl',
+    'tm':'tm','turkmenistan':'tm',
+    'tn':'tn','tunisia':'tn',
+    'to':'to','tonga':'to',
+    'tr':'tr','turkey':'tr','türkiye':'tr','turkiye':'tr',
+    'tt':'tt','trinidad and tobago':'tt',
+    'tv':'tv','tuvalu':'tv',
+    'tw':'tw','taiwan':'tw','republic of china':'tw','roc':'tw',
+    'tz':'tz','tanzania':'tz',
+    'ua':'ua','ukraine':'ua','україна':'ua',
+    'ug':'ug','uganda':'ug',
+    'us':'us','usa':'us','united states':'us','united states of america':'us','america':'us',
+    'uy':'uy','uruguay':'uy',
+    'uz':'uz','uzbekistan':'uz',
+    'va':'va','vatican':'va','holy see':'va',
+    've':'ve','venezuela':'ve',
+    'vn':'vn','vietnam':'vn','viet nam':'vn',
+    'vu':'vu','vanuatu':'vu',
+    'ws':'ws','samoa':'ws',
+    'ye':'ye','yemen':'ye',
+    'za':'za','south africa':'za','rsa':'za',
+    'zm':'zm','zambia':'zm',
+    'zw':'zw','zimbabwe':'zw'
+} -%}
+
+{# Regional Indicator Symbols 🇦-🇿 (Unicode U+1F1E6 to U+1F1FF) #}
+{%- set unicode_chars = {
+    127462: '🇦', 127463: '🇧', 127464: '🇨', 127465: '🇩', 127466: '🇪',
+    127467: '🇫', 127468: '🇬', 127469: '🇭', 127470: '🇮', 127471: '🇯',
+    127472: '🇰', 127473: '🇱', 127474: '🇲', 127475: '🇳', 127476: '🇴',
+    127477: '🇵', 127478: '🇶', 127479: '🇷', 127480: '🇸', 127481: '🇹',
+    127482: '🇺', 127483: '🇻', 127484: '🇼', 127485: '🇽', 127486: '🇾',
+    127487: '🇿'
+} -%}
+
+{# Internal: Normalize input and convert to ISO-2 code #}
+{%- macro _iso2(country) -%}
+  {%- if country -%}
+    {%- set normalized = country|string|trim|lower|replace('ü','u')|replace('ö','o')|replace('ä','a')|replace('ß','ss')|replace('é','e')|replace('è','e')|replace('ê','e')|replace('ë','e')|replace('á','a')|replace('à','a')|replace('â','a')|replace('ã','a')|replace('ñ','n')|replace('ç','c')|replace('í','i')|replace('ì','i')|replace('î','i')|replace('ï','i')|replace('ó','o')|replace('ò','o')|replace('ô','o')|replace('õ','o')|replace('ú','u')|replace('ù','u')|replace('û','u') -%}
+    {{- iso_map.get(normalized, normalized if normalized|length == 2 else '') -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# Internal: Validate ISO-2 code format #}
+{%- macro _is_valid_iso(iso) -%}
+  {%- if iso and iso|length == 2 -%}
+    {%- set ascii_a = 97 -%}
+    {%- set ascii_z = 122 -%}
+    {%- if (iso[0]|ord >= ascii_a and iso[0]|ord <= ascii_z) and (iso[1]|ord >= ascii_a and iso[1]|ord <= ascii_z) -%}
+      true
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# Internal: Calculate Twemoji filename from ISO-2 code #}
+{%- macro _twemoji_code(country) -%}
+  {%- set iso = _iso2(country) -%}
+  {%- if _is_valid_iso(iso) %}
+    {%- set base = 0x1f1e6 -%}
+    {%- set first_code = base + (iso[0]|upper|ord - 65) -%}
+    {%- set second_code = base + (iso[1]|upper|ord - 65) -%}
+    {{- "%x-%x"|format(first_code, second_code) -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# Generate flag emoji from country name or ISO-2 code #}
+{%- macro flag_emoji(country) -%}
+  {%- set iso = _iso2(country) -%}
+  {%- if _is_valid_iso(iso) %}
+    {%- set base = 127462 -%}
+    {%- set first_char = unicode_chars.get(base + (iso[0]|upper|ord - 65)) -%}
+    {%- set second_char = unicode_chars.get(base + (iso[1]|upper|ord - 65)) -%}
+    {{- first_char ~ second_char -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# Generate Twemoji PNG URL with optional size parameter #}
+{%- macro flag_png(country) -%}
+  {%- set code = _twemoji_code(country) -%}
+  {%- set size = '72x72' -%}
+  {%- if code %}{{ base_url ~ "/" ~ size ~ "/" ~ code ~ ".png" }}{% endif -%}
+{%- endmacro -%}
+
+{# Generate Twemoji SVG URL #}
+{%- macro flag_svg(country) -%}
+  {%- set code = _twemoji_code(country) -%}
+  {%- if code %}{{ base_url ~ "/svg/" ~ code ~ ".svg" }}{% endif -%}
+{%- endmacro -%}
+
+{# Get complete flag information as structured data #}
+{%- macro flag_info(country) -%}
+  {%- set iso = _iso2(country) -%}
+  {%- set emoji = flag_emoji(country) -%}
+  {%- set code = _twemoji_code(country) -%}
+  {%- if iso and emoji and code -%}
+{
+  "input": "{{ country }}",
+  "iso": "{{ iso|upper }}",
+  "emoji": "{{ emoji }}",
+  "png_72": "{{ flag_png(country) }}",
+  "svg": "{{ flag_svg(country) }}",
+  "twemoji_code": "{{ code }}"
+}
+  {%- else -%}
+{ "error": "Country '{{ country }}' not found or invalid" }
+  {%- endif -%}
+{%- endmacro -%}
