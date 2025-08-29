@@ -1,7 +1,5 @@
 {
     "name": "Country Flags",
-    "description": "Custom template for displaying country flags in Home Assistant as emojis or images via Twemoji.",
-    "version": "1.0.0",
     "filename": "country_flags.jinja",
     "homeassistant": "2025.08.0"
 }
